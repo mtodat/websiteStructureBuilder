@@ -27,9 +27,10 @@ public class StructureBuilder {
 					+ folder.getAbsolutePath() + "'. Abort.");
 			return;
 		}
+		int rootFolderPathLen = folder.getAbsolutePath().length();
 		for (File f : folder.listFiles()) {
 			if (f.isDirectory()) {
-				buildFolderItemQueue(f, itemQueue);
+				buildFolderItemQueue(f, itemQueue, rootFolderPathLen);
 			}
 		}
 
@@ -56,7 +57,7 @@ public class StructureBuilder {
 	}
 
 	private void buildFolderItemQueue(File folder,
-			PriorityQueue<MenuItem> itemQueue) {
+			PriorityQueue<MenuItem> itemQueue, int rootFolderPathLen) {
 
 		File menuFile = new File(folder.getAbsolutePath() + "/.menu");
 		MenuItem menuItem = null;
@@ -79,7 +80,9 @@ public class StructureBuilder {
 				}
 
 				// Create menu item in queue
-				menuItem = new MenuItem(itemName, itemOrder);
+				menuItem = new MenuItem(folder.getAbsolutePath().substring(
+						rootFolderPathLen)
+						+ "/", itemName, itemOrder);
 				itemQueue.add(menuItem);
 			} finally {
 				menuFileReader.close();
@@ -97,7 +100,8 @@ public class StructureBuilder {
 		// Check subfolders
 		for (File f : folder.listFiles()) {
 			if (f.isDirectory()) {
-				buildFolderItemQueue(f, menuItem.getChildItemsQueue());
+				buildFolderItemQueue(f, menuItem.getChildItemsQueue(),
+						rootFolderPathLen);
 			}
 		}
 	}
@@ -119,6 +123,7 @@ public class StructureBuilder {
 				outputWriter.write(",");
 			}
 			outputWriter.write("{");
+			outputWriter.write("path:'" + curItem.getPath() + "',");
 			outputWriter.write("name:'" + curItem.getName() + "',");
 			outputWriter.write("items:");
 			writeMenuStructure(curItem.getChildItemsQueue(), outputWriter);
@@ -132,15 +137,21 @@ public class StructureBuilder {
 	 * 
 	 */
 	class MenuItem implements Comparable<MenuItem> {
+		private final String path;
 		private final String name;
 		private final int order;
 		private final PriorityQueue<MenuItem> childs;
 
-		public MenuItem(String name, int order) {
+		public MenuItem(String path, String name, int order) {
+			this.path = path;
 			this.name = name;
 			this.order = order;
 			this.childs = new PriorityQueue<StructureBuilder.MenuItem>();
 
+		}
+
+		public String getPath() {
+			return path;
 		}
 
 		public String getName() {
