@@ -168,7 +168,11 @@ public class StructureBuilder {
 
 		@Override
 		public int compareTo(MenuItem o) {
-			return this.order - o.order;
+			if (this.order != o.order) {
+				return this.order - o.order;
+			} else {
+				return this.name.compareTo(o.name);
+			}
 		}
 	}
 }
