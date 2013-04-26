@@ -109,9 +109,15 @@ public class StructureBuilder {
 			OutputStreamWriter outputWriter) throws IOException {
 
 		outputWriter.write("[");
+		boolean firstElem = true;
 		while (itemQueue.size() > 0) {
 			MenuItem curItem = itemQueue.poll();
 
+			if (firstElem) {
+				firstElem = false;
+			} else {
+				outputWriter.write(",");
+			}
 			outputWriter.write("{");
 			outputWriter.write("name:'" + curItem.getName() + "',");
 			outputWriter.write("items:");
