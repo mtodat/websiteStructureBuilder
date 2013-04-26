@@ -109,7 +109,9 @@ public class StructureBuilder {
 			OutputStreamWriter outputWriter) throws IOException {
 
 		outputWriter.write("[");
-		for (MenuItem curItem : itemQueue) {
+		while (itemQueue.size() > 0) {
+			MenuItem curItem = itemQueue.poll();
+
 			outputWriter.write("{");
 			outputWriter.write("name:'" + curItem.getName() + "',");
 			outputWriter.write("items:");
