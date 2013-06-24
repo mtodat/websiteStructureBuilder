@@ -191,7 +191,6 @@ public class StructureBuilder {
 				groupTemplateFiles.add(new SimpleImmutableEntry<String, StructureBuilder.MenuItem>(f.getAbsolutePath(), siteMenuItem));
 			}
 		}
-
 	}
 
 	/**
@@ -264,65 +263,74 @@ public class StructureBuilder {
 
 		// Find group items
 		String groupName = templateFile.getName().substring(10 /* .template. */);
-		TreeSet<MenuItem> groupItems = new TreeSet<StructureBuilder.MenuItem>();
+		Map<String, TreeSet<MenuItem>> groupItems = new HashMap<String, TreeSet<MenuItem>>();
 
 		findGroupItems(belongingMenuItem.childs, groupName, groupItems);
 
-		// Write template
-		String groupFileOutPath = templateFile.getAbsolutePath().substring(0,
-				templateFile.getAbsolutePath().length() - templateFile.getName().length())
-				+ "." + groupName + ".html";
+		// Write templates
+		for (Map.Entry<String, TreeSet<MenuItem>> curGroup : groupItems.entrySet()) {
+			String groupFileOutPath = templateFile.getAbsolutePath().substring(0,
+					templateFile.getAbsolutePath().length() - templateFile.getName().length())
+					+ "." + curGroup.getKey() + ".html";
 
-		BufferedWriter outputWriter;
-		try {
-			outputWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(groupFileOutPath)));
-		} catch (FileNotFoundException e) {
-			System.err.println("Could not write group file '" + groupFileOutPath + "'. Skipping template '" + templatePath + "'.");
-			return;
-		}
-		try {
+			BufferedWriter outputWriter;
 			try {
-				boolean firstItem = true;
-				for (MenuItem groupItem : groupItems) {
-					if (!firstItem) {
-						outputWriter.write(itemSpacer);
-						firstItem = false;
-					}
+				outputWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(groupFileOutPath)));
+			} catch (FileNotFoundException e) {
+				System.err.println("Could not write group file '" + groupFileOutPath + "'. Skipping template '" + templatePath + "'.");
+				return;
+			}
 
-					// Build and write item template
-					String curItemTemplate = "";
-					Matcher itemTemplateReplacementMatcher = templateReplacementPattern.matcher(itemTemplate);
-					int lastMatchPos = 0;
-					while (itemTemplateReplacementMatcher.find()) {
-						curItemTemplate += itemTemplate.substring(lastMatchPos, itemTemplateReplacementMatcher.start());
-
-						String placeholderName = itemTemplateReplacementMatcher.group(1);
-						if (groupItem.getAllProperties().containsKey(placeholderName)) {
-							curItemTemplate += groupItem.getAllProperties().get(placeholderName);
+			try {
+				try {
+					boolean firstItem = true;
+					for (MenuItem groupItem : curGroup.getValue()) {
+						if (!firstItem) {
+							outputWriter.write(itemSpacer);
+							firstItem = false;
 						}
 
-						lastMatchPos = itemTemplateReplacementMatcher.end();
-					}
-					curItemTemplate += itemTemplate.substring(lastMatchPos);
+						// Build and write item template
+						String curItemTemplate = "";
+						Matcher itemTemplateReplacementMatcher = templateReplacementPattern.matcher(itemTemplate);
+						int lastMatchPos = 0;
+						while (itemTemplateReplacementMatcher.find()) {
+							curItemTemplate += itemTemplate.substring(lastMatchPos, itemTemplateReplacementMatcher.start());
 
-					outputWriter.write(curItemTemplate);
+							String placeholderName = itemTemplateReplacementMatcher.group(1);
+							if (groupItem.getAllProperties().containsKey(placeholderName)) {
+								curItemTemplate += groupItem.getAllProperties().get(placeholderName);
+							}
+
+							lastMatchPos = itemTemplateReplacementMatcher.end();
+						}
+						curItemTemplate += itemTemplate.substring(lastMatchPos);
+
+						outputWriter.write(curItemTemplate);
+					}
+				} finally {
+					outputWriter.close();
 				}
-			} finally {
-				outputWriter.close();
+			} catch (IOException e) {
+				System.err.println("Could not write group file '" + groupFileOutPath + "'. Skipping template '" + templatePath + "'.");
+				return;
 			}
-		} catch (IOException e) {
-			System.err.println("Could not write group file '" + groupFileOutPath + "'. Skipping template '" + templatePath + "'.");
-			return;
 		}
 	}
 
 	/**
-	 * Finds all menu items belonging to a group.
+	 * Finds all menu items belonging to a group or a sub-group.
 	 */
-	private void findGroupItems(TreeSet<MenuItem> items, String groupName, TreeSet<MenuItem> groupItems) {
+	private void findGroupItems(TreeSet<MenuItem> items, String groupName, Map<String, TreeSet<MenuItem>> groupItems) {
+		final String lowerGroupName = groupName.toLowerCase();
 		for (MenuItem i : items) {
-			if (i.getGroup().equalsIgnoreCase(groupName)) {
-				groupItems.add(i);
+			if (i.getGroup() != null) {
+				if (i.getGroup().toLowerCase().startsWith(lowerGroupName)) {
+					if (groupItems.get(i.getGroup()) == null) {
+						groupItems.put(i.getGroup(), new TreeSet<MenuItem>());
+					}
+					groupItems.get(i.getGroup()).add(i);
+				}
 			}
 			findGroupItems(i.childs, groupName, groupItems);
 		}
