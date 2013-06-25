@@ -130,8 +130,15 @@ public class StructureBuilder {
 				String nameDE = (String) siteEntry.get("name_de");
 				String nameEN = (String) siteEntry.get("name_en");
 				String group = (String) siteEntry.get("group");
-				Number order = (Number) siteEntry.get("order");
-				if (order == null) {
+				Object orderObj = siteEntry.get("order");
+				Number order;
+				if (orderObj != null) {
+					if (orderObj instanceof Number) {
+						order = (Number) siteEntry.get("order");
+					} else {
+						order = simpleOrderPreservingHash(siteEntry.get("order").toString());
+					}
+				} else {
 					order = 9999;
 				}
 				Boolean hidden = (Boolean) siteEntry.get("hidden");
@@ -191,6 +198,50 @@ public class StructureBuilder {
 				groupTemplateFiles.add(new SimpleImmutableEntry<String, StructureBuilder.MenuItem>(f.getAbsolutePath(), siteMenuItem));
 			}
 		}
+	}
+
+	/**
+	 * Generates an 32-bit integer hash value which is order-preserving. Note
+	 * that this method is very simple and does not work well for non-letters or
+	 * letters outside the ANSI charset.
+	 */
+	private int simpleOrderPreservingHash(String str) {
+		int hash = 10000; // Min hash is 10000
+		final int maxHashLen = 5;
+		int hashLen = Math.min(str.length(), maxHashLen);
+		final int possibleHasedCharacters = 43;
+		String strLower = str.toLowerCase();
+		for (int c = 0; c < hashLen; c++) {
+			// Encode character
+			int charCode;
+			char curChar = strLower.charAt(c);
+			if (curChar == ' ') {
+				charCode = 0;
+			} else if (curChar >= 48 && curChar <= 57) {
+				// Next 10 codes are numbers
+				charCode = curChar - 47;
+			} else if (curChar >= 97 && curChar <= 122) {
+				// Next 26 codes are letters
+				charCode = curChar - 86;
+			} else if (curChar == 'ä') {
+				// Special char for German language
+				charCode = 38;
+			} else if (curChar == 'ö') {
+				// Special char for German language
+				charCode = 39;
+			} else if (curChar == 'ü') {
+				// Special char for German language
+				charCode = 40;
+			} else if (curChar == 'ß') {
+				// Special char for German language
+				charCode = 41;
+			} else {
+				charCode = 42;
+			}
+			// Add to hash encoded as base possibleHasedCharacters
+			hash += charCode * Math.pow(possibleHasedCharacters, maxHashLen - 1 - c);
+		}
+		return hash;
 	}
 
 	/**
