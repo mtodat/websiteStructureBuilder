@@ -123,53 +123,21 @@ public class StructureBuilder {
 					System.out.println("Found invalid site entry in menu file '" + menuFile.getAbsolutePath() + "'. Skipping item.");
 					continue;
 				}
+
 				JSONObject siteEntry = (JSONObject) o;
-				// Get site properties
-				String link = (String) siteEntry.get("link");
-				String fullLink = folder.getAbsolutePath().substring(rootFolderPathLen) + "/" + (link != null ? link : "");
-				String nameDE = (String) siteEntry.get("name_de");
-				String nameEN = (String) siteEntry.get("name_en");
-				String group = (String) siteEntry.get("group");
-				Object orderObj = siteEntry.get("order");
-				Number order;
-				if (orderObj != null) {
-					if (orderObj instanceof Number) {
-						order = (Number) siteEntry.get("order");
-					} else {
-						order = simpleOrderPreservingHash(siteEntry.get("order").toString());
+				// Build item and if a link is given, add the item as
+				// sub-element
+				if (siteEntry.get("link") == null) {
+					MenuItem newItem = buildMenuItem(folder, rootFolderPathLen, menuFile, siteEntry, false);
+					if (newItem == null) {
+						continue;
 					}
-				} else {
-					order = 9999;
-				}
-				Boolean hidden = (Boolean) siteEntry.get("hidden");
-				if (hidden == null) {
-					hidden = false;
-				}
-				Map<String, String> allProperties = new HashMap<String, String>();
-				for (Object k : siteEntry.keySet()) {
-					allProperties.put((String) k, siteEntry.get(k).toString());
-				}
-
-				// Create menu item
-				MenuItem newItem;
-				try {
-					newItem = new MenuItem(fullLink, nameDE, nameEN, group, order.intValue(), hidden, allProperties);
-				} catch (IllegalArgumentException e) {
-					System.err.println("Found invalid site entry in menu file '" + menuFile.getAbsolutePath() + "'. " + e.getMessage()
-							+ " Skipping item.");
-					continue;
-				}
-
-				// Update sanitized properties
-				allProperties.put("link", newItem.getLink());
-				allProperties.put("hidden", ((Boolean) newItem.isHidden()).toString());
-				allProperties.put("name_de", newItem.getNameDE());
-				allProperties.put("name_en", newItem.getNameEN());
-
-				// If a link is given, add the item as sub-element
-				if (link == null) {
 					siteMenuItem = newItem;
 				} else {
+					MenuItem newItem = buildMenuItem(folder, rootFolderPathLen, menuFile, siteEntry, true);
+					if (newItem == null) {
+						continue;
+					}
 					customSubItems.add(newItem);
 				}
 			}
@@ -198,6 +166,54 @@ public class StructureBuilder {
 				groupTemplateFiles.add(new SimpleImmutableEntry<String, StructureBuilder.MenuItem>(f.getAbsolutePath(), siteMenuItem));
 			}
 		}
+	}
+
+	private MenuItem buildMenuItem(File folder, int rootFolderPathLen, File menuFile, JSONObject siteEntry, boolean fullLinkGiven) {
+		// Get site properties
+		String fullLink = (String) siteEntry.get("link");
+		if (!fullLinkGiven) {
+			fullLink = folder.getAbsolutePath().substring(rootFolderPathLen) + "/" + (fullLink != null ? fullLink : "");
+		}
+		String nameDE = (String) siteEntry.get("name_de");
+		String nameEN = (String) siteEntry.get("name_en");
+		String group = (String) siteEntry.get("group");
+		Object orderObj = siteEntry.get("order");
+		Number order;
+		if (orderObj != null) {
+			if (orderObj instanceof Number) {
+				order = (Number) siteEntry.get("order");
+			} else {
+				order = simpleOrderPreservingHash(siteEntry.get("order").toString());
+			}
+		} else {
+			order = 9999;
+		}
+		Boolean hidden = (Boolean) siteEntry.get("hidden");
+		if (hidden == null) {
+			hidden = false;
+		}
+		Map<String, String> allProperties = new HashMap<String, String>();
+		for (Object k : siteEntry.keySet()) {
+			allProperties.put((String) k, siteEntry.get(k).toString());
+		}
+
+		// Create menu item
+		MenuItem item;
+		try {
+			item = new MenuItem(fullLink, nameDE, nameEN, group, order.intValue(), hidden, allProperties);
+		} catch (IllegalArgumentException e) {
+			System.err.println("Found invalid site entry in menu file '" + menuFile.getAbsolutePath() + "'. " + e.getMessage()
+					+ " Skipping item.");
+			return null;
+		}
+
+		// Update sanitized properties
+		allProperties.put("link", item.getLink());
+		allProperties.put("hidden", ((Boolean) item.isHidden()).toString());
+		allProperties.put("name_de", item.getNameDE());
+		allProperties.put("name_en", item.getNameEN());
+
+		return item;
 	}
 
 	/**
