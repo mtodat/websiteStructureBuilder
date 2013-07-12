@@ -176,7 +176,19 @@ public class StructureBuilder {
 		}
 		String nameDE = (String) siteEntry.get("name_de");
 		String nameEN = (String) siteEntry.get("name_en");
-		String group = (String) siteEntry.get("group");
+		Set<String> groups = new HashSet<String>();
+		if (siteEntry.get("group") != null) {
+			groups.add((String) siteEntry.get("group"));
+		} else if (siteEntry.get("groups") != null) {
+			JSONArray groupsArray = (JSONArray) siteEntry.get("groups");
+			for (Object o : groupsArray) {
+				if (o instanceof String) {
+					groups.add((String) o);
+				} else {
+					System.err.println("Invalid data in groups attribute. Ignored");
+				}
+			}
+		}
 		Object orderObj = siteEntry.get("order");
 		Number order;
 		if (orderObj != null) {
@@ -200,7 +212,7 @@ public class StructureBuilder {
 		// Create menu item
 		MenuItem item;
 		try {
-			item = new MenuItem(fullLink, nameDE, nameEN, group, order.intValue(), hidden, allProperties);
+			item = new MenuItem(fullLink, nameDE, nameEN, groups, order.intValue(), hidden, allProperties);
 		} catch (IllegalArgumentException e) {
 			System.err.println("Found invalid site entry in menu file '" + menuFile.getAbsolutePath() + "'. " + e.getMessage()
 					+ " Skipping item.");
@@ -391,12 +403,12 @@ public class StructureBuilder {
 	private void findGroupItems(TreeSet<MenuItem> items, String groupName, Map<String, TreeSet<MenuItem>> groupItems) {
 		final String lowerGroupName = groupName.toLowerCase();
 		for (MenuItem i : items) {
-			if (i.getGroup() != null) {
-				if (i.getGroup().toLowerCase().startsWith(lowerGroupName)) {
-					if (groupItems.get(i.getGroup()) == null) {
-						groupItems.put(i.getGroup(), new TreeSet<MenuItem>());
+			for (String iGroup : i.getGroups()) {
+				if (iGroup.toLowerCase().startsWith(lowerGroupName)) {
+					if (groupItems.get(iGroup) == null) {
+						groupItems.put(iGroup, new TreeSet<MenuItem>());
 					}
-					groupItems.get(i.getGroup()).add(i);
+					groupItems.get(iGroup).add(i);
 				}
 			}
 			findGroupItems(i.childs, groupName, groupItems);
@@ -411,13 +423,13 @@ public class StructureBuilder {
 		private final String link;
 		private final String nameDE;
 		private final String nameEN;
-		private final String group;
+		private final Set<String> groups;
 		private final int order;
 		private final boolean hidden;
 		private final Map<String, String> allProperties;
 		private final TreeSet<MenuItem> childs;
 
-		public MenuItem(String link, String nameDE, String nameEN, String group, int order, boolean hidden,
+		public MenuItem(String link, String nameDE, String nameEN, Set<String> groups, int order, boolean hidden,
 				Map<String, String> allProperties) {
 			if (nameDE == null && nameEN == null) {
 				throw new IllegalArgumentException("Must provide name in at least one language.");
@@ -427,7 +439,7 @@ public class StructureBuilder {
 			this.nameDE = nameDE != null ? nameDE : nameEN;
 			this.nameEN = nameEN != null ? nameEN : nameDE;
 			this.order = order;
-			this.group = group;
+			this.groups = groups;
 			this.hidden = hidden;
 			this.allProperties = allProperties;
 			this.childs = new TreeSet<StructureBuilder.MenuItem>();
@@ -463,8 +475,8 @@ public class StructureBuilder {
 			}
 		}
 
-		public String getGroup() {
-			return group;
+		public Set<String> getGroups() {
+			return groups;
 		}
 
 		public boolean isHidden() {
